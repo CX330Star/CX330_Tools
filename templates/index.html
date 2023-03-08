@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CX330_Tools</title>
+<style>
+    .boom{
+        background-color: gainsboro;
+        float: left;
+        width: 100%;
+        height: 100%;
+    }
+    .left {
+        float: left;
+        width: 50%;
+    }
+    .right {
+        float: right;
+        width: 50%;
+    }
+    .item{
+        margin: 10px;
+    }
+    .item_title{
+        font-size: 18px;
+        font-weight: bold;
+    }
+    #send_packet{
+        margin-top: 6px;
+    }
+    #remark{
+        font-size: 14px;
+    }
+    #captcha_link{
+        width: 500px;
+    }
+    #start_boom{
+        float: left;
+        margin-left: 80%;
+        margin-top: 6px;
+    }
+    #loading{
+        float: right;
+    }
+    h2{
+        background-color: palegoldenrod;
+    }
+</style>
+</head>
+<body>
+    <div>
+        <label for="input_proxy">设置代理：</label>
+        <input id="input_proxy" type="text" name="input_proxy" value ="127.0.0.1:10808">
+        <input id="set_proxy" type="checkbox" onclick="set_proxy(this)">
+    </div>
+    <div>
+        <input id="proxy_test" type="button" onclick="proxy_test()" value="查看当前IP">
+        <span id="proxy_ip"></span>
+    </div>
+    <hr>
+    <h2>验证码爆破</h2>
+    <hr>
+    <div class="boom">
+        <div class="left">
+            <div class="item">
+                <label for="dict" class="item_title">上传字典：</label>
+                <hr>
+                <form id="upload_form" enctype="multipart/form-data" >
+                    <div>
+                        <input type="file" id="dict" name="dict" accept=".txt">
+                        <input type="button" value="上传" onclick="upload_dict()">
+                        <span id="remark">（若无上传将采用系统自带字典）</span>
+                    </div>
+                </form>
+            </div>
+            <div class="item">
+                <label for="send_packet" class="item_title">分析请求包：</label>
+                <hr>
+                <label for="is_https">是否为HTTPS：</label><input id="is_https" type="checkbox" onclick="set_HTTPS(this)">
+                <br>
+                <textarea id="send_packet" name="send_packet" rows="20" cols="100"></textarea>
+                <input type="button" onclick="send_packet()" value="确定">
+            </div>
+            <div class="item">
+                <label for="params" class="item_title">请求参数：</label>
+                <hr>
+                <label for="captcha_link">验证码链接：</label>
+                <input id="captcha_link" type="text" name="captcha_link">
+                <input type="button" onclick="captcha_test()" value="测试">
+                <span id="show_captcha"></span> 
+                <br>
+                <div id="params"></div>
+                <label for="thread_num">线程数：</label>
+                <select id="thread_num" onchange="thread_num(this)"><option value="1">1</option><option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option></select>
+                <br>
+                <input id="start_boom" type="button" value="开始爆破" onclick="start_boom()">
+                <div id="loading"></div>
+            </div>
+        </div>
+        <div class="right">
+            <div class="item">
+                <label for="result_boom" class="item_title">爆破结果：</label>
+                <hr>
+                <textarea id="result_boom" name="result_boom" rows="40" cols="100"></textarea>
+            </div>
+        </div>
+    </div>
+</body>
+<script typet="text/javascript" src="/static/js/jquery.min.js"></script>
+<script type="text/javascript" src="/static/js/jquery.base64.js"></script>
+<script typet="text/javascript">
+    //初始化参数
+    var params=new Object();
+
+    //设置代理
+    function set_proxy(e){
+        if(e.checked == true){
+            var py = $("#input_proxy").val()
+        }else{
+            var py = ""
+        }
+        $.ajax({
+            url: "http://127.0.0.1:5000/set_proxy",
+            type: "GET",
+            data: {
+                py:py
+            }
+        })
+    }
+
+    //设置HTTPS
+    function set_HTTPS(e){
+        if(e.checked == true){
+            var is_https = true
+        }else{
+            var is_https = false
+        }
+        $.ajax({
+            url: "http://127.0.0.1:5000/is_https",
+            type: "GET",
+            data: {
+                is_https:is_https
+            }
+        })
+    }
+
+    //查看当前IP
+    function proxy_test(){
+        $.getJSON("http://127.0.0.1:5000/proxy_test",function(data){
+            document.getElementById("proxy_ip").innerHTML = data.origin
+        })
+    }
+
+    //发送请求包，返回请求参数追加到前端
+    function send_packet(){
+        var packet = $.base64.encode($("#send_packet").val())
+        $.ajax({
+            url: "http://127.0.0.1:5000/send_packet",
+            type: "GET",
+            data: {
+                packet:packet
+            },
+            success: function(data){
+                alert("请求头已设置成功！")
+                var data = JSON.parse(data)
+                $("#params").empty()
+                var i = 0
+                for(var key in data){
+                    i++
+                    $(document).ready(function() {
+                        params[key] = data[key]
+                        $('#params').append('<label for="box'+i+'">'+key+' : </label><input id="box'+i+'" type="text" name="box'+i+'" value="'+data[key]+'" readonly="readonly"><select name="'+key+'" onchange="mark_param(this)"><option value=""></option><option value="to_param">爆破参数</option><option value="captcha">验证码</option></select><br>');
+                    })
+                }
+            }
+        })
+    }
+
+    //标记参数
+    function mark_param(e){
+        if(e.value == "to_param"){
+            //爆破参数标记
+            params[e.name] = "AMD580EEWRQQEQ6FXG9I"
+        }
+        if(e.value == "captcha"){
+            //验证码标记
+            params[e.name] = "ME3SDCTPJEMEPAUASQ3K"
+        }
+    }
+
+    function thread_num(e){
+        $.ajax({
+            url: "http://127.0.0.1:5000/thread_num",
+            type: "GET",
+            data: {
+                threadNum:e.value
+            }
+        })
+    }
+
+    //上传字典
+    function upload_dict(){
+        var dict_data = new FormData($('#upload_form')[0]);
+        $.ajax({
+            url: "/upload_dict",
+            type: "POST",
+            data: dict_data,
+            async: true,
+            cashe: false,
+            contentType: false,
+            processData: false,
+            success: function(data){
+                alert(data) 
+            }, 
+            error: function(data){ 
+                alert("上传失败！")
+            }
+        });
+    }
+
+    //测试验证码
+    function captcha_test(){
+        var captcha_link = $.base64.encode($("#captcha_link").val())
+        $.ajax({
+            url: "http://127.0.0.1:5000/captcha_test",
+            type: "GET",
+            data: {
+                captcha_link:captcha_link
+            },
+            success: function(data){
+                document.getElementById("show_captcha").innerHTML = data
+            }
+        })
+    }
+
+    //开始爆破
+    function start_boom(){
+        //爆破验证码连接标记
+        params["YBZXSHZQ383CGVFC39PN"] = $.base64.encode($("#captcha_link").val())
+        $.ajax({
+            url: 'http://127.0.0.1:5000/start_boom',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(params),
+            beforeSend:function(){
+                $("#loading").html('<img src="/static/images/loading.gif" height="30" width="30"/>')
+            },
+            success: function(data){
+                $("#loading").html('')
+                alert(data)
+            },
+            error: function(data){
+                $("#loading").html('')
+                alert('发生未知错误！')
+            }
+        })
+        alert("字典较大时，爆破时间较长，请耐心等待！\n正在爆破中...")
+    }
+</script>
+</html>
